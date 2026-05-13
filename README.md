@@ -29,7 +29,14 @@
 
 ## Screenshots
 
-<!-- TODO: Add screenshots -->
+<p align="center">
+  <img src="screenshots/home.png" width="49%" />
+  <img src="screenshots/home_light.png" width="49%" />
+</p>
+<p align="center">
+  <img src="screenshots/connected.png" width="49%" />
+  <img src="screenshots/connected_light.png" width="49%" />
+</p>
 
 ## Installation
 
