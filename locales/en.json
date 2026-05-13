@@ -38,5 +38,6 @@
   "repository": "Repository",
   "contribute": "Want to contribute? Open a PR on GitHub!",
   "trayShow": "Show",
-  "trayQuit": "Quit"
+  "trayQuit": "Quit",
+  "version": "Version"
 }

@@ -38,5 +38,6 @@
   "repository": "Repositório",
   "contribute": "Quer contribuir? Abra um PR no GitHub!",
   "trayShow": "Mostrar",
-  "trayQuit": "Sair"
+  "trayQuit": "Sair",
+  "version": "Versão"
 }

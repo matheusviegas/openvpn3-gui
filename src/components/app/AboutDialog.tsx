@@ -16,6 +16,7 @@ export function AboutDialog({ open, onOpenChange }: AboutDialogProps) {
         <DialogTitle>{t("about")}</DialogTitle>
         <DialogDescription>{t("aboutDescription")}</DialogDescription>
         <div className="mt-4 space-y-2 text-sm">
+          <p><span className="text-muted-foreground">{t("version")}:</span> {__APP_VERSION__}</p>
           <p><span className="text-muted-foreground">{t("developer")}:</span> Matheus Souza</p>
           <p><span className="text-muted-foreground">{t("repository")}:</span>{" "}
             <a href="#" onClick={(e) => { e.preventDefault(); openUrl("https://github.com/matheusviegas/openvpn3-gui"); }} className="text-primary underline cursor-pointer">
