@@ -37,7 +37,7 @@ jobs:
           workspaces: src-tauri
 
       - name: Install Node dependencies
-        run: npm ci
+        run: npm install
 
       - name: Build Tauri app
         run: npx tauri build --bundles deb,appimage
