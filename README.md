@@ -38,7 +38,7 @@
 Download the latest `.deb` from [Releases](https://github.com/matheusviegas/openvpn3-gui/releases) and install:
 
 ```bash
-sudo dpkg -i openvpn3-gui_*.deb
+sudo dpkg -i OpenVPN3.GUI_*.deb
 ```
 
 ### From AppImage
@@ -46,8 +46,8 @@ sudo dpkg -i openvpn3-gui_*.deb
 Download the `.AppImage` from [Releases](https://github.com/matheusviegas/openvpn3-gui/releases), make it executable, and run:
 
 ```bash
-chmod +x OpenVPN3-GUI_*.AppImage
-./OpenVPN3-GUI_*.AppImage
+chmod +x OpenVPN3.GUI_*.AppImage
+./OpenVPN3.GUI_*.AppImage
 ```
 
 ## Prerequisites
