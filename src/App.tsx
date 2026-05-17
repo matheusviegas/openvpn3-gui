@@ -4,7 +4,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { Toaster, toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { StatusBar, StatusLine, ConfigItem, ImportDialog, AboutDialog } from "@/components/app";
+import { TitleBar, StatusBar, StatusLine, ConfigItem, ImportDialog, AboutDialog } from "@/components/app";
 import { useI18n } from "@/lib/i18n";
 import "./index.css";
 
@@ -187,21 +187,23 @@ function App() {
   const getSession = (name: string) => sessions.find(s => s.config_name === name);
 
   return (
-    <div className="flex flex-col h-screen gap-4">
+    <div className="flex flex-col h-screen">
+      <TitleBar />
+      <Toaster richColors position="top-right" />
+      <ImportDialog
+        open={importDialog.open}
+        name={importDialog.name}
+        error={importDialog.error}
+        onOpenChange={(open) => setImportDialog((s) => ({ ...s, open }))}
+        onNameChange={(name) => setImportDialog((s) => ({ ...s, name, error: "" }))}
+        onConfirm={handleImportConfirm}
+      />
+      <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
+
       <div className="p-4 flex-1 gap-4 flex flex-col">
-        <Toaster richColors position="top-right" />
-        <ImportDialog
-          open={importDialog.open}
-          name={importDialog.name}
-          error={importDialog.error}
-          onOpenChange={(open) => setImportDialog((s) => ({ ...s, open }))}
-          onNameChange={(name) => setImportDialog((s) => ({ ...s, name, error: "" }))}
-          onConfirm={handleImportConfirm}
-        />
-        <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
         <StatusBar connected={sessions.length > 0} onAboutOpen={() => setAboutOpen(true)} />
 
-        <main className="flex-1 flex flex-col gap-3 overflow-auto">
+        <main className="flex-1 flex flex-col gap-4 overflow-auto">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-semibold">{t("configurations")}</h2>
             <Button size="sm" onClick={handleImport} disabled={!!loadingAction}>
