@@ -116,6 +116,12 @@ fn parse_sessions(output: &str) -> Vec<SessionInfo> {
 }
 
 #[tauri::command]
+pub fn get_openvpn_version() -> Result<String, String> {
+    let output = run_cmd(&["version"])?;
+    Ok(output.lines().next().unwrap_or("").trim().to_string())
+}
+
+#[tauri::command]
 pub fn get_status() -> Result<Vec<SessionInfo>, String> {
     let output = match run_cmd(&["sessions-list"]) {
         Ok(o) => o,

@@ -4,7 +4,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { Toaster, toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { StatusBar, ConfigItem, ImportDialog, AboutDialog } from "@/components/app";
+import { StatusBar, StatusLine, ConfigItem, ImportDialog, AboutDialog } from "@/components/app";
 import { useI18n } from "@/lib/i18n";
 import "./index.css";
 
@@ -41,6 +41,7 @@ function App() {
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
   const [importDialog, setImportDialog] = useState({ open: false, filePath: "", name: "", error: "" });
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [openvpnVersion, setOpenvpnVersion] = useState("");
   const prevStatsRef = useRef<Record<string, { bytesIn: number; bytesOut: number; timestamp: number }>>({});
 
   const NAME_REGEX = /^[a-zA-Z0-9_-]+$/;
@@ -56,6 +57,7 @@ function App() {
   useEffect(() => {
     refreshConfigs();
     refreshStatus();
+    invoke<string>("get_openvpn_version").then(setOpenvpnVersion).catch(() => { });
     const interval = setInterval(refreshStatus, 3000);
     return () => clearInterval(interval);
   }, [refreshConfigs, refreshStatus]);
@@ -185,53 +187,56 @@ function App() {
   const getSession = (name: string) => sessions.find(s => s.config_name === name);
 
   return (
-    <div className="flex flex-col h-screen p-4 gap-4">
-      <Toaster richColors position="top-right" />
-      <ImportDialog
-        open={importDialog.open}
-        name={importDialog.name}
-        error={importDialog.error}
-        onOpenChange={(open) => setImportDialog((s) => ({ ...s, open }))}
-        onNameChange={(name) => setImportDialog((s) => ({ ...s, name, error: "" }))}
-        onConfirm={handleImportConfirm}
-      />
-      <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
-      <StatusBar connected={sessions.length > 0} onAboutOpen={() => setAboutOpen(true)} />
+    <div className="flex flex-col h-screen gap-4">
+      <div className="p-4 flex-1 gap-4 flex flex-col">
+        <Toaster richColors position="top-right" />
+        <ImportDialog
+          open={importDialog.open}
+          name={importDialog.name}
+          error={importDialog.error}
+          onOpenChange={(open) => setImportDialog((s) => ({ ...s, open }))}
+          onNameChange={(name) => setImportDialog((s) => ({ ...s, name, error: "" }))}
+          onConfirm={handleImportConfirm}
+        />
+        <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
+        <StatusBar connected={sessions.length > 0} onAboutOpen={() => setAboutOpen(true)} />
 
-      <main className="flex-1 flex flex-col gap-3 overflow-auto">
-        <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold">{t("configurations")}</h2>
-          <Button size="sm" onClick={handleImport} disabled={!!loadingAction}>
-            {loadingAction === "import" && <Loader2 className="h-4 w-4 animate-spin" />}
-            {t("import")}
-          </Button>
-        </div>
+        <main className="flex-1 flex flex-col gap-3 overflow-auto">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">{t("configurations")}</h2>
+            <Button size="sm" onClick={handleImport} disabled={!!loadingAction}>
+              {loadingAction === "import" && <Loader2 className="h-4 w-4 animate-spin" />}
+              {t("import")}
+            </Button>
+          </div>
 
-        {configs.length === 0 ? (
-          <p className="text-center text-muted-foreground py-12">{t("noConfigs")}</p>
-        ) : (
-          <ul className="flex flex-col gap-2">
-            {configs.map((c, i) => {
-              const session = getSession(c.name);
-              return (
-                <ConfigItem
-                  key={`${c.name}-${i}`}
-                  name={c.name}
-                  isConnected={!!session}
-                  loadingAction={loadingAction}
-                  onConnect={handleConnect}
-                  onDisconnect={handleDisconnect}
-                  onRemove={handleRemove}
-                  disabled={!!loadingAction}
-                  virtualIp={session?.virtual_ip}
-                  connectedSince={session?.connected_since}
-                  stats={sessionStats[c.name]}
-                />
-              );
-            })}
-          </ul>
-        )}
-      </main>
+          {configs.length === 0 ? (
+            <p className="text-center text-muted-foreground py-12">{t("noConfigs")}</p>
+          ) : (
+            <ul className="flex flex-col gap-2">
+              {configs.map((c, i) => {
+                const session = getSession(c.name);
+                return (
+                  <ConfigItem
+                    key={`${c.name}-${i}`}
+                    name={c.name}
+                    isConnected={!!session}
+                    loadingAction={loadingAction}
+                    onConnect={handleConnect}
+                    onDisconnect={handleDisconnect}
+                    onRemove={handleRemove}
+                    disabled={!!loadingAction}
+                    virtualIp={session?.virtual_ip}
+                    connectedSince={session?.connected_since}
+                    stats={sessionStats[c.name]}
+                  />
+                );
+              })}
+            </ul>
+          )}
+        </main>
+      </div>
+      <StatusLine sessionCount={sessions.length} openvpnVersion={openvpnVersion} />
     </div>
   );
 }

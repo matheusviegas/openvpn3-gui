@@ -44,5 +44,7 @@
   "upload": "Upload",
   "ping": "Ping",
   "elapsed": "Time",
-  "total": "Total"
+  "total": "Total",
+  "activeSession": "active session",
+  "activeSessions": "active sessions"
 }
