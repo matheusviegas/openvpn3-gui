@@ -7,7 +7,7 @@ use tauri::{
 };
 
 use commands::config::{list_configs, import_config, remove_config};
-use commands::session::{connect, disconnect, get_status};
+use commands::session::{connect, disconnect, get_status, get_session_stats, get_openvpn_version};
 use commands::tray::set_tray_language;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -86,6 +86,8 @@ pub fn run() {
             connect,
             disconnect,
             get_status,
+            get_session_stats,
+            get_openvpn_version,
             set_tray_language,
         ])
         .run(tauri::generate_context!())

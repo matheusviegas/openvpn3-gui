@@ -44,8 +44,10 @@ src/                        # Frontend
   components/
     ui/                     # Generic shadcn/ui components (Button, Dialog, DropdownMenu, AlertDialog)
     app/                    # App-specific components
+      TitleBar.tsx          # Custom titlebar with window controls (minimize, maximize, close)
       StatusBar.tsx         # Header: connection status + language/theme/about controls
-      ConfigItem.tsx        # Single config row with connect/disconnect/remove
+      StatusLine.tsx        # Footer: openvpn3 version + active session count
+      ConfigItem.tsx        # Single config row with connect/disconnect/remove + per-session stats
       ImportDialog.tsx      # Modal for naming a config during import
       AboutDialog.tsx       # About modal with author info
 
@@ -55,7 +57,7 @@ src-tauri/src/              # Backend (Rust)
   commands/
     mod.rs                  # Shared run_cmd() helper for executing openvpn3
     config.rs               # list_configs, import_config, remove_config
-    session.rs              # connect (async), disconnect (async), get_status
+    session.rs              # connect (async), disconnect (async), get_status, get_session_stats (async), get_openvpn_version
     tray.rs                 # set_tray_language — rebuilds tray menu from locale JSON
 ```
 
@@ -70,6 +72,7 @@ src-tauri/src/              # Backend (Rust)
 ### Backend
 - All openvpn3 interaction is via `std::process::Command` wrapping the CLI
 - `connect` and `disconnect` are async using `tauri::async_runtime::spawn_blocking` to avoid blocking the main thread
+- `get_session_stats` is async — measures ping via ICMP (`ping -c 1`) and reads TUN_BYTES_IN/OUT from `openvpn3 session-stats`
 - Tray menu is rebuilt dynamically when language changes (frontend calls `set_tray_language`)
 - Window close is intercepted to hide (minimize to tray) instead of quit
 - Translations embedded at compile time via `include_str!()`
@@ -85,12 +88,14 @@ src-tauri/src/              # Backend (Rust)
 - `configs-list` output: table with "Configuration Name" header, dashes separator, then rows of "name    date_or_dash"
 - `sessions-list` output: block with "Config name:", "Device:", "Created:" fields. Device may be on same line as Owner.
 - `sessions-list` when empty: prints "No sessions available"
+- `session-stats -c <name>` output: key-value pairs including TUN_BYTES_IN, TUN_BYTES_OUT
+- `version` output: first line contains the openvpn3 version string
 - Virtual IP is obtained from `ip addr show <tun_device>` (not from openvpn3 directly)
 - Commands don't require sudo
 
 ## Configuration
 
-- `src-tauri/tauri.conf.json`: app config (productName, window, bundle, identifier)
-- `src-tauri/capabilities/default.json`: Tauri permissions (core, dialog, opener)
+- `src-tauri/tauri.conf.json`: app config (productName, window, bundle, identifier); `"decorations": false` disables native titlebar
+- `src-tauri/capabilities/default.json`: Tauri permissions (core, dialog, opener, window controls: allow-close, allow-minimize, allow-toggle-maximize, allow-start-dragging)
 - `productName` = "OpenVPN3-GUI" (controls WM_CLASS for taskbar icon)
 - `mainBinaryName` = "openvpn3-gui" (controls binary and package name)
