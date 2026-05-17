@@ -39,5 +39,10 @@
   "contribute": "Want to contribute? Open a PR on GitHub!",
   "trayShow": "Show",
   "trayQuit": "Quit",
-  "version": "Version"
+  "version": "Version",
+  "download": "Download",
+  "upload": "Upload",
+  "ping": "Ping",
+  "elapsed": "Time",
+  "total": "Total"
 }
