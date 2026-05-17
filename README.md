@@ -21,7 +21,11 @@
 
 - **Import configurations** (.ovpn/.conf) with name validation and duplicate detection
 - **List, connect, disconnect, and remove** VPN configurations
-- **Real-time status** — Virtual IP and connection uptime
+- **Multiple simultaneous sessions** — Connect to multiple VPN configs at the same time
+- **Session statistics** — Per-session download/upload speed, ping, total bytes transferred, and connection uptime
+- **Real-time status** — Virtual IP, connection uptime, and live traffic stats per session
+- **Custom titlebar** — Native-looking custom titlebar integrated with the app design
+- **Status bar** — Footer showing openvpn3 version and active session count
 - **System tray** — Minimize to tray on close; click to restore
 - **Dark / Light themes**
 - **Multi-language** — English, Português (BR), Español (easily extensible)
@@ -113,6 +117,10 @@ openvpn3-gui/
 │   ├── components/
 │   │   ├── ui/               # Generic shadcn/ui components
 │   │   └── app/              # App-specific components
+│   │       ├── TitleBar.tsx   # Custom titlebar with window controls
+│   │       ├── StatusBar.tsx  # Header: connection indicator + controls
+│   │       ├── StatusLine.tsx # Footer: openvpn3 version + session count
+│   │       └── ConfigItem.tsx # Config card with stats
 │   ├── locales/index.ts      # Locale registry
 │   └── lib/                  # Providers (i18n, theme, utils)
 ├── src-tauri/                # Backend (Rust + Tauri 2)
@@ -120,7 +128,7 @@ openvpn3-gui/
 │       ├── lib.rs            # App setup (tray, plugins, window)
 │       └── commands/         # Command modules
 │           ├── config.rs     # list, import, remove configs
-│           ├── session.rs    # connect, disconnect, status
+│           ├── session.rs    # connect, disconnect, status, session-stats, version
 │           └── tray.rs       # Tray language sync
 └── scripts/                  # Dev/build automation
 ```
@@ -145,7 +153,9 @@ openvpn3-gui/
 | Remove | `openvpn3 config-remove --config <name> --force` |
 | Connect | `openvpn3 session-start --config <name>` |
 | Disconnect | `openvpn3 session-manage --disconnect --config <name>` |
+| Session stats | `openvpn3 session-stats -c <name>` |
 | Status | `openvpn3 sessions-list` + `ip addr show <device>` |
+| Version | `openvpn3 version` |
 
 ## Adding a New Language
 
