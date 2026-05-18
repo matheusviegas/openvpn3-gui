@@ -13,6 +13,7 @@
   <img src="https://img.shields.io/badge/React-19-blue" alt="React" />
   <img src="https://img.shields.io/badge/TypeScript-6-blue" alt="TypeScript" />
   <img src="https://img.shields.io/badge/License-MIT-green" alt="License" />
+  <img src="https://github.com/matheusviegas/openvpn3-gui/actions/workflows/release.yml/badge.svg" alt="Release" />
 </p>
 
 ---
