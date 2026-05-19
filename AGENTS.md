@@ -1,4 +1,4 @@
-# CLAUDE.md — AI Context for OpenVPN3 GUI
+# AI Context for OpenVPN3 GUI
 
 ## What is this project?
 
