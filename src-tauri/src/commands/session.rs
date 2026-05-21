@@ -84,7 +84,7 @@ fn parse_sessions(output: &str) -> Vec<SessionInfo> {
     for line in output.lines() {
         let trimmed = line.trim();
 
-        if trimmed.starts_with("---") {
+        if trimmed.starts_with("---") || trimmed.is_empty() {
             // Block separator — push previous session if complete
             if let (Some(cn), Some(dev)) = (config_name.take(), device.take()) {
                 let virtual_ip = get_tun_ip(&dev);
