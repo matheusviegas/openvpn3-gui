@@ -5,16 +5,20 @@ on:
     tags:
       - "v*"
 
-permissions:
-  contents: write
+# Deny all permissions by default; grant the minimum needed per job.
+permissions: {}
 
 jobs:
   build:
     runs-on: ubuntu-22.04
 
+    # Only the release step needs write access to create the GitHub Release.
+    permissions:
+      contents: write
+
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
       - name: Install system dependencies
         run: |
@@ -23,16 +27,18 @@ jobs:
             libgtk-3-dev libayatana-appindicator3-dev librsvg2-dev libssl-dev
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
           cache: npm
 
       - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: stable
 
       - name: Rust cache
-        uses: swatinem/rust-cache@v2
+        uses: swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
         with:
           workspaces: src-tauri
 
@@ -47,7 +53,7 @@ jobs:
         run: echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3.0.2
         with:
           name: v${{ steps.version.outputs.version }}
           draft: false
