@@ -22,6 +22,7 @@
 
 - **Import configurations** (.ovpn/.conf) with name validation and duplicate detection
 - **List, connect, disconnect, and remove** VPN configurations
+- **MFA / auth-user-pass** — profiles with `auth-user-pass` ask for the password/TOTP at connect time; the username is saved so you only type it once, the password is never stored
 - **Multiple simultaneous sessions** — Connect to multiple VPN configs at the same time
 - **Session statistics** — Per-session download/upload speed, ping, total bytes transferred, and connection uptime
 - **Real-time status** — Virtual IP, connection uptime, and live traffic stats per session
@@ -121,6 +122,7 @@ openvpn3-gui/
 │   │       ├── TitleBar.tsx   # Custom titlebar with window controls
 │   │       ├── StatusBar.tsx  # Header: connection indicator + controls
 │   │       ├── StatusLine.tsx # Footer: openvpn3 version + session count
+│   │       ├── AuthDialog.tsx # Username + password/TOTP prompt (auth-user-pass)
 │   │       └── ConfigItem.tsx # Config card with stats
 │   ├── locales/index.ts      # Locale registry
 │   └── lib/                  # Providers (i18n, theme, utils)
@@ -128,7 +130,8 @@ openvpn3-gui/
 │   └── src/
 │       ├── lib.rs            # App setup (tray, plugins, window)
 │       └── commands/         # Command modules
-│           ├── config.rs     # list, import, remove configs
+│           ├── config.rs     # list, import, remove configs + auth-user-pass detection
+│           ├── credentials.rs # Saved usernames (never passwords)
 │           ├── session.rs    # connect, disconnect, status, session-stats, version
 │           └── tray.rs       # Tray language sync
 └── scripts/                  # Dev/build automation
@@ -152,7 +155,8 @@ openvpn3-gui/
 | List configs | `openvpn3 configs-list` |
 | Import | `openvpn3 config-import --config <path> --name <name> --persistent` |
 | Remove | `openvpn3 config-remove --config <name> --force` |
-| Connect | `openvpn3 session-start --config <name>` |
+| Connect | `openvpn3 session-start --config <name>` (username + password piped to stdin when the profile has `auth-user-pass`) |
+| Detect MFA | `openvpn3 config-dump --config <name>` (looks for a bare `auth-user-pass`) |
 | Disconnect | `openvpn3 session-manage --disconnect --config <name>` |
 | Session stats | `openvpn3 session-stats -c <name>` |
 | Status | `openvpn3 sessions-list` + `ip addr show <device>` |

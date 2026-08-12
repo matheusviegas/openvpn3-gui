@@ -1,6 +1,6 @@
 use serde::Serialize;
 use std::process::Command;
-use super::run_cmd;
+use super::{run_cmd, run_cmd_with_input};
 
 #[derive(Serialize, Clone)]
 pub struct SessionInfo {
@@ -17,10 +17,43 @@ pub struct SessionStats {
     pub ping_ms: Option<f64>,
 }
 
+/// Starts a session, optionally answering the interactive auth prompts.
+///
+/// Reproduces the manual flow:
+///   $ openvpn3 session-start --config <name>
+///   Auth User name: <username>
+///   Auth Password: <password/TOTP>
+/// by writing both answers, in that order, to the process stdin.
 #[tauri::command]
-pub async fn connect(config_name: String) -> Result<String, String> {
+pub async fn connect(
+    config_name: String,
+    username: Option<String>,
+    password: Option<String>,
+) -> Result<String, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        run_cmd(&["session-start", "--config", &config_name])
+        let user = username.unwrap_or_default();
+        let pass = password.unwrap_or_default();
+
+        if user.trim().is_empty() {
+            return run_cmd(&["session-start", "--config", &config_name]);
+        }
+
+        let input = format!("{}\n{}\n", user.trim(), pass);
+        let result = run_cmd_with_input(
+            &["session-start", "--config", &config_name],
+            &input,
+            &[pass.as_str()],
+        );
+
+        // A rejected credential can leave the session registered in openvpn3, which
+        // would block the next attempt — drop it (best effort, it usually is already gone).
+        if let Err(ref e) = result {
+            if e.contains("AUTH_FAILED") {
+                let _ = run_cmd(&["session-manage", "--disconnect", "--config", &config_name]);
+            }
+        }
+
+        result
     })
     .await
     .map_err(|e| e.to_string())?

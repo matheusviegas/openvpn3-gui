@@ -47,17 +47,19 @@ src/                        # Frontend
       TitleBar.tsx          # Custom titlebar with window controls (minimize, maximize, close)
       StatusBar.tsx         # Header: connection status + language/theme/about controls
       StatusLine.tsx        # Footer: openvpn3 version + active session count
-      ConfigItem.tsx        # Single config row with connect/disconnect/remove + per-session stats
-      ImportDialog.tsx      # Modal for naming a config during import
+      ConfigItem.tsx        # Single config row with connect/disconnect/remove + per-session stats + MFA badge
+      ImportDialog.tsx      # Modal for naming a config during import (+ username when auth-user-pass)
+      AuthDialog.tsx        # Modal asking username + password/TOTP before connecting
       AboutDialog.tsx       # About modal with author info
 
 src-tauri/src/              # Backend (Rust)
   lib.rs                    # Tauri app setup: plugins, system tray, window close intercept
   main.rs                   # Binary entry point (calls lib::run)
   commands/
-    mod.rs                  # Shared run_cmd() helper for executing openvpn3
-    config.rs               # list_configs, import_config, remove_config
-    session.rs              # connect (async), disconnect (async), get_status, get_session_stats (async), get_openvpn_version
+    mod.rs                  # run_cmd() helper + run_cmd_with_input() (interactive auth prompts)
+    config.rs               # list_configs, import_config, remove_config, file_requires_auth
+    credentials.rs          # set_config_username / get_config_username (username-only store)
+    session.rs              # connect (async, optional user/password), disconnect (async), get_status, get_session_stats (async), get_openvpn_version
     tray.rs                 # set_tray_language — rebuilds tray menu from locale JSON
 ```
 
@@ -76,6 +78,15 @@ src-tauri/src/              # Backend (Rust)
 - Tray menu is rebuilt dynamically when language changes (frontend calls `set_tray_language`)
 - Window close is intercepted to hide (minimize to tray) instead of quit
 - Translations embedded at compile time via `include_str!()`
+- Commands that need the credential store are generic over `R: tauri::Runtime` so they can be tested with `tauri::test::mock_app()`
+
+### MFA / auth-user-pass
+- A profile needs credentials when it has a bare `auth-user-pass` (with a file argument it does not prompt)
+- Detection: `file_requires_auth` reads the .ovpn before import; `list_configs` runs `openvpn3 config-dump --config <name>` for already imported profiles
+- `list_configs` returns `{ name, requires_auth, username }`; the frontend opens `AuthDialog` instead of connecting directly
+- Only the username is persisted (`app_config_dir()/credentials.json`, mode 0600). The password/TOTP is asked on every connect and never stored
+- `connect` answers the prompts by writing `<user>\n<password>\n` to openvpn3 stdin, then closing it. openvpn3's stdout is fully buffered off a TTY, so waiting for the prompt text before answering would deadlock — answers go in upfront
+- Failure detection: non-zero exit, or auth-failure markers in the output (openvpn3 can exit 0 after a rejected credential). Errors are returned prefixed with `AUTH_FAILED` and the password is redacted from any output
 
 ### i18n
 - Single source of truth: `locales/*.json`
@@ -92,6 +103,16 @@ src-tauri/src/              # Backend (Rust)
 - `version` output: first line contains the openvpn3 version string
 - Virtual IP is obtained from `ip addr show <tun_device>` (not from openvpn3 directly)
 - Commands don't require sudo
+- `config-dump --config <name>` prints the stored profile; the MFA check greps it for `auth-user-pass`
+- `session-start` on an auth-user-pass profile prints `Auth User name: ` then `Auth Password: ` and reads one line from stdin for each; there is no CLI flag to pass credentials, and piping them in works (no PTY needed)
+- Verified manually:
+  ```
+  $ printf 'user\npass\n' | openvpn3 session-start --config matheus-souza-mfa
+  Using pre-loaded configuration profile 'matheus-souza-mfa'
+  Session path: /net/openvpn/v3/sessions/...
+  Auth User name: Auth Password:
+  Connected to 10.0.1.100 (10.0.1.100)
+  ```
 
 ## Configuration
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Loader2, Trash2, Plug, Unplug, ArrowDown, ArrowUp } from "lucide-react";
+import { Loader2, Trash2, Plug, Unplug, ArrowDown, ArrowUp, KeyRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { AlertDialog, AlertDialogTrigger, AlertDialogContent, AlertDialogTitle, AlertDialogDescription, AlertDialogAction, AlertDialogCancel } from "@/components/ui/alert-dialog";
 import { useI18n } from "@/lib/i18n";
@@ -23,6 +23,8 @@ interface ConfigItemProps {
   virtualIp?: string | null;
   connectedSince?: string | null;
   stats?: SessionStats;
+  requiresAuth?: boolean;
+  username?: string | null;
 }
 
 function formatBytes(bytes: number): string {
@@ -38,7 +40,7 @@ function formatSpeed(bps: number): string {
   return `${(bps / 1048576).toFixed(1)} MB/s`;
 }
 
-export function ConfigItem({ name, isConnected, loadingAction, onConnect, onDisconnect, onRemove, disabled, virtualIp, connectedSince, stats }: ConfigItemProps) {
+export function ConfigItem({ name, isConnected, loadingAction, onConnect, onDisconnect, onRemove, disabled, virtualIp, connectedSince, stats, requiresAuth, username }: ConfigItemProps) {
   const { t } = useI18n();
   const [elapsed, setElapsed] = useState("");
   const isLoadingConnect = loadingAction === `connect-${name}`;
@@ -64,7 +66,18 @@ export function ConfigItem({ name, isConnected, loadingAction, onConnect, onDisc
   return (
     <li className="flex flex-col rounded-lg border bg-card p-3 gap-2">
       <div className="flex items-center justify-between">
-        <span className="font-medium">{name}</span>
+        <span className="font-medium flex items-center gap-1.5">
+          {name}
+          {requiresAuth && (
+            <span
+              className="inline-flex items-center gap-1 rounded-full border px-1.5 py-0.5 text-xs font-normal text-muted-foreground"
+              title={username ? `${t("requiresAuth")} — ${username}` : t("requiresAuth")}
+            >
+              <KeyRound className="h-3 w-3" />
+              {username || t("mfaBadge")}
+            </span>
+          )}
+        </span>
         <div className="flex items-center gap-2">
           {isConnected ? (
             <Button variant="destructive" size="sm" onClick={() => onDisconnect(name)} disabled={!!loadingAction}>

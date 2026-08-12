@@ -4,12 +4,14 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { Toaster, toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { TitleBar, StatusBar, StatusLine, ConfigItem, ImportDialog, AboutDialog } from "@/components/app";
+import { TitleBar, StatusBar, StatusLine, ConfigItem, ImportDialog, AuthDialog, AboutDialog } from "@/components/app";
 import { useI18n } from "@/lib/i18n";
 import "./index.css";
 
 interface VpnConfig {
   name: string;
+  requires_auth: boolean;
+  username: string | null;
 }
 
 interface SessionInfo {
@@ -39,7 +41,8 @@ function App() {
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const [sessionStats, setSessionStats] = useState<Record<string, StatsState>>({});
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
-  const [importDialog, setImportDialog] = useState({ open: false, filePath: "", name: "", error: "" });
+  const [importDialog, setImportDialog] = useState({ open: false, filePath: "", name: "", error: "", requiresAuth: false, username: "" });
+  const [authDialog, setAuthDialog] = useState({ open: false, configName: "", username: "", password: "", error: "" });
   const [aboutOpen, setAboutOpen] = useState(false);
   const [openvpnVersion, setOpenvpnVersion] = useState("");
   const prevStatsRef = useRef<Record<string, { bytesIn: number; bytesOut: number; timestamp: number }>>({});
@@ -111,6 +114,7 @@ function App() {
   const translateError = (e: string): string => {
     if (e.includes("already exists")) return t("configAlreadyExists");
     if (e.includes("Invalid name")) return t("importNameInvalid");
+    if (e.includes("AUTH_FAILED")) return t("authFailed");
     return e;
   };
 
@@ -119,11 +123,15 @@ function App() {
     if (!file) return;
     const path = file as string;
     const defaultName = path.split("/").pop()?.replace(/\.(ovpn|conf)$/, "") || "config";
-    setImportDialog({ open: true, filePath: path, name: defaultName, error: "" });
+    let requiresAuth = false;
+    try {
+      requiresAuth = await invoke<boolean>("file_requires_auth", { filePath: path });
+    } catch (e) { console.error(e); }
+    setImportDialog({ open: true, filePath: path, name: defaultName, error: "", requiresAuth, username: "" });
   };
 
   const handleImportConfirm = async () => {
-    const { filePath, name } = importDialog;
+    const { filePath, name, username } = importDialog;
     if (!NAME_REGEX.test(name)) {
       setImportDialog((s) => ({ ...s, error: t("importNameInvalid") }));
       return;
@@ -131,7 +139,7 @@ function App() {
     setImportDialog((s) => ({ ...s, open: false }));
     setLoadingAction("import");
     try {
-      await invoke("import_config", { filePath, name });
+      await invoke("import_config", { filePath, name, username: username.trim() || null });
       await refreshConfigs();
       toast.success(t("configImported"));
     } catch (e: any) {
@@ -152,11 +160,11 @@ function App() {
     setLoadingAction(null);
   };
 
-  const handleConnect = async (name: string) => {
+  const runConnect = async (name: string, username?: string, password?: string) => {
     setLoadingAction(`connect-${name}`);
     await new Promise((r) => setTimeout(r, 0));
     try {
-      await invoke("connect", { configName: name });
+      await invoke("connect", { configName: name, username: username ?? null, password: password ?? null });
       // Retry refreshStatus until session appears (openvpn3 may take a moment)
       for (let i = 0; i < 3; i++) {
         await new Promise((r) => setTimeout(r, 500));
@@ -166,9 +174,38 @@ function App() {
       }
       toast.success(t("connectedMsg"));
     } catch (e: any) {
-      toast.error(t("connectFailed"), { description: String(e) });
+      toast.error(t("connectFailed"), { description: translateError(String(e)) });
     }
     setLoadingAction(null);
+  };
+
+  const handleConnect = async (name: string) => {
+    const config = configs.find(c => c.name === name);
+    if (config?.requires_auth) {
+      setAuthDialog({ open: true, configName: name, username: config.username ?? "", password: "", error: "" });
+      return;
+    }
+    await runConnect(name);
+  };
+
+  const handleAuthConfirm = async () => {
+    const { configName, username, password } = authDialog;
+    const user = username.trim();
+    if (!user || !password) {
+      setAuthDialog((s) => ({ ...s, error: t("authFieldsRequired") }));
+      return;
+    }
+    setAuthDialog({ open: false, configName: "", username: "", password: "", error: "" });
+
+    const stored = configs.find(c => c.name === configName)?.username ?? "";
+    if (user !== stored) {
+      try {
+        await invoke("set_config_username", { configName, username: user });
+        setConfigs(cs => cs.map(c => (c.name === configName ? { ...c, username: user } : c)));
+      } catch (e) { console.error(e); }
+    }
+
+    await runConnect(configName, user, password);
   };
 
   const handleDisconnect = async (name: string) => {
@@ -194,9 +231,23 @@ function App() {
         open={importDialog.open}
         name={importDialog.name}
         error={importDialog.error}
+        requiresAuth={importDialog.requiresAuth}
+        username={importDialog.username}
         onOpenChange={(open) => setImportDialog((s) => ({ ...s, open }))}
         onNameChange={(name) => setImportDialog((s) => ({ ...s, name, error: "" }))}
+        onUsernameChange={(username) => setImportDialog((s) => ({ ...s, username }))}
         onConfirm={handleImportConfirm}
+      />
+      <AuthDialog
+        open={authDialog.open}
+        configName={authDialog.configName}
+        username={authDialog.username}
+        password={authDialog.password}
+        error={authDialog.error}
+        onOpenChange={(open) => setAuthDialog((s) => (open ? { ...s, open } : { open: false, configName: "", username: "", password: "", error: "" }))}
+        onUsernameChange={(username) => setAuthDialog((s) => ({ ...s, username, error: "" }))}
+        onPasswordChange={(password) => setAuthDialog((s) => ({ ...s, password, error: "" }))}
+        onConfirm={handleAuthConfirm}
       />
       <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
 
@@ -231,6 +282,8 @@ function App() {
                     virtualIp={session?.virtual_ip}
                     connectedSince={session?.connected_since}
                     stats={sessionStats[c.name]}
+                    requiresAuth={c.requires_auth}
+                    username={c.username}
                   />
                 );
               })}

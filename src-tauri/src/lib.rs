@@ -6,7 +6,8 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
 };
 
-use commands::config::{list_configs, import_config, remove_config};
+use commands::config::{list_configs, import_config, remove_config, file_requires_auth};
+use commands::credentials::{get_config_username, set_config_username};
 use commands::session::{connect, disconnect, get_status, get_session_stats, get_openvpn_version};
 use commands::tray::set_tray_language;
 
@@ -90,6 +91,9 @@ pub fn run() {
             list_configs,
             import_config,
             remove_config,
+            file_requires_auth,
+            get_config_username,
+            set_config_username,
             connect,
             disconnect,
             get_status,
