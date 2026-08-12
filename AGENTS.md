@@ -16,6 +16,9 @@ A desktop GUI for managing OpenVPN3 VPN connections on Linux. Built with Tauri 2
 # Frontend only
 npm run build
 
+# Frontend tests (vitest + jsdom)
+npm test
+
 # Full app (frontend + Rust)
 source ~/.cargo/env && npx tauri build
 
@@ -70,6 +73,7 @@ src-tauri/src/              # Backend (Rust)
 - State lives in App.tsx; child components receive props + callbacks
 - Actions (connect/disconnect) use `await new Promise(r => setTimeout(r, 0))` before `invoke()` to allow React to render loading state
 - Tauri IPC via `invoke("command_name", { args })` from `@tauri-apps/api/core`
+- Initial focus inside a dialog must use Radix's `onOpenAutoFocus` (+ `event.preventDefault()`), not a `useEffect`: the content lives in a portal that mounts after the parent effect runs, so input refs are still `null` there. Deciding the target from a ref (not from a prop in the dep array) is what keeps the focus from being stolen while the user types
 
 ### Backend
 - All openvpn3 interaction is via `std::process::Command` wrapping the CLI

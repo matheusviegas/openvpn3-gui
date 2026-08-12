@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useI18n } from "@/lib/i18n";
@@ -29,14 +29,19 @@ export function AuthDialog({
   const { t } = useI18n();
   const passwordRef = useRef<HTMLInputElement>(null);
   const usernameRef = useRef<HTMLInputElement>(null);
+  // Read when the dialog opens, so typing in the username field never moves the focus
+  const usernameAtOpen = useRef(username);
+  usernameAtOpen.current = username;
 
-  // Focus the password field when the username is already saved
-  useEffect(() => {
-    if (!open) return;
-    const target = username ? passwordRef.current : usernameRef.current;
-    const timer = setTimeout(() => target?.focus(), 50);
-    return () => clearTimeout(timer);
-  }, [open, username]);
+  // Initial focus: password when the username is already saved, username otherwise.
+  // Radix fires this after the portal content is mounted (refs are set) and skips its
+  // own "focus the first tabbable element" once the event is prevented.
+  const handleOpenAutoFocus = useCallback((event: Event) => {
+    const target = usernameAtOpen.current ? passwordRef.current : usernameRef.current;
+    if (!target) return;
+    event.preventDefault();
+    target.focus();
+  }, []);
 
   const canSubmit = username.trim().length > 0 && password.length > 0;
   const inputClass =
@@ -44,7 +49,7 @@ export function AuthDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent onOpenAutoFocus={handleOpenAutoFocus}>
         <DialogTitle>{t("authRequired")}</DialogTitle>
         <DialogDescription>{t("authDescription").replace("{config}", configName)}</DialogDescription>
 
