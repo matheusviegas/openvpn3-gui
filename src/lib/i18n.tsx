@@ -1,5 +1,4 @@
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react";
-import { invoke } from "@tauri-apps/api/core";
+import { createContext, useContext, useState, type ReactNode } from "react";
 import { locales, type Locale, type TranslationKey } from "@/locales";
 
 interface I18nContextType {
@@ -17,10 +16,6 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     setLocale(l);
     localStorage.setItem("locale", l);
   };
-
-  useEffect(() => {
-    invoke("set_tray_language", { locale }).catch(() => {});
-  }, [locale]);
 
   const t = (key: TranslationKey) => locales[locale]?.translations[key] ?? key;
 

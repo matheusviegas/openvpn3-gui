@@ -1,15 +1,14 @@
 mod commands;
 
 use tauri::{
-    Manager,
-    menu::{Menu, MenuItem},
+    Emitter, Manager,
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
 };
 
 use commands::config::{list_configs, import_config, remove_config, file_requires_auth};
 use commands::credentials::{get_config_username, set_config_username};
 use commands::session::{connect, disconnect, get_status, get_session_stats, get_openvpn_version};
-use commands::tray::set_tray_language;
+use commands::tray::{parse_tray_action, rebuild_tray_menu, sync_tray_menu, TrayActionKind};
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -32,27 +31,42 @@ pub fn run() {
                 )?;
             }
 
-            // System tray (labels updated by frontend via set_tray_language on mount)
-            let show_i = MenuItem::with_id(app, "show", "Mostrar", true, None::<&str>)?;
-            let quit_i = MenuItem::with_id(app, "quit", "Sair", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show_i, &quit_i])?;
-
+            // System tray. Starts with just show/quit (no profiles yet); the
+            // frontend calls sync_tray_menu on mount and on every status poll to
+            // keep it mirroring the profile/session list shown in the main window.
             TrayIconBuilder::with_id("main")
                 .icon(app.default_window_icon().unwrap().clone())
-                .menu(&menu)
                 .show_menu_on_left_click(false)
-                .on_menu_event(|app, event| match event.id.as_ref() {
-                    "show" => {
-                        if let Some(window) = app.get_webview_window("main") {
-                            let _ = window.show();
-                            let _ = window.unminimize();
-                            let _ = window.set_focus();
+                .on_menu_event(|app, event| {
+                    let id = event.id.as_ref();
+                    match id {
+                        "show" => {
+                            if let Some(window) = app.get_webview_window("main") {
+                                let _ = window.show();
+                                let _ = window.unminimize();
+                                let _ = window.set_focus();
+                            }
+                        }
+                        "quit" => {
+                            app.exit(0);
+                        }
+                        _ => {
+                            if let Some(action) = parse_tray_action(id) {
+                                // MFA profiles need the AuthDialog, so bring the
+                                // window forward before the frontend reacts.
+                                let needs_window =
+                                    action.requires_auth && action.kind == TrayActionKind::Connect;
+                                if needs_window {
+                                    if let Some(window) = app.get_webview_window("main") {
+                                        let _ = window.show();
+                                        let _ = window.unminimize();
+                                        let _ = window.set_focus();
+                                    }
+                                }
+                                let _ = app.emit("tray-action", action);
+                            }
                         }
                     }
-                    "quit" => {
-                        app.exit(0);
-                    }
-                    _ => {}
                 })
                 .on_tray_icon_event(|tray, event| {
                     if let TrayIconEvent::Click {
@@ -70,6 +84,9 @@ pub fn run() {
                     }
                 })
                 .build(app)?;
+
+            rebuild_tray_menu(app.handle(), "pt-BR", &[])
+                .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?;
 
             // Intercept window close to minimize to tray
             if let Some(window) = app.get_webview_window("main") {
@@ -99,7 +116,7 @@ pub fn run() {
             get_status,
             get_session_stats,
             get_openvpn_version,
-            set_tray_language,
+            sync_tray_menu,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

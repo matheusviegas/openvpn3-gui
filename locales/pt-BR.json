@@ -51,6 +51,7 @@
   "contribute": "Quer contribuir? Abra um PR no GitHub!",
   "trayShow": "Mostrar",
   "trayQuit": "Sair",
+  "trayNoConfigs": "Nenhuma configuração importada",
   "version": "Versão",
   "download": "Download",
   "upload": "Upload",

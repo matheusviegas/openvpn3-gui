@@ -63,7 +63,7 @@ src-tauri/src/              # Backend (Rust)
     config.rs               # list_configs, import_config, remove_config, file_requires_auth
     credentials.rs          # set_config_username / get_config_username (username-only store)
     session.rs              # connect (async, optional user/password), disconnect (async), get_status, get_session_stats (async), get_openvpn_version
-    tray.rs                 # set_tray_language — rebuilds tray menu from locale JSON
+    tray.rs                 # build_tray_entries (pure) renders profiles/sessions into the tray menu; sync_tray_menu command rebuilds it; parse_tray_action (pure) maps a clicked item id to a connect/disconnect action
 ```
 
 ## Key Patterns
@@ -79,10 +79,19 @@ src-tauri/src/              # Backend (Rust)
 - All openvpn3 interaction is via `std::process::Command` wrapping the CLI
 - `connect` and `disconnect` are async using `tauri::async_runtime::spawn_blocking` to avoid blocking the main thread
 - `get_session_stats` is async — measures ping via ICMP (`ping -c 1`) and reads TUN_BYTES_IN/OUT from `openvpn3 session-stats`
-- Tray menu is rebuilt dynamically when language changes (frontend calls `set_tray_language`)
+- Tray menu is rebuilt whenever locale or profiles/sessions change (frontend calls `sync_tray_menu`)
 - Window close is intercepted to hide (minimize to tray) instead of quit
 - Translations embedded at compile time via `include_str!()`
 - Commands that need the credential store are generic over `R: tauri::Runtime` so they can be tested with `tauri::test::mock_app()`
+
+### System tray context menu
+- `sync_tray_menu(locale, profiles)` rebuilds the whole menu from a pure `build_tray_entries` function (unit-tested without a real app/window)
+- Each profile becomes a `CheckMenuItem` (✓ when connected). The item id encodes the action: `tray-connect:<name>`, `tray-connect-auth:<name>` (profile needs MFA), or `tray-disconnect:<name>`
+- `App.tsx` pushes `{ locale, profiles }` to `sync_tray_menu` from the same 3s status poll it already runs, guarded by a signature (`useRef` of `JSON.stringify({ locale, profiles })`) so an unchanged state never rebuilds the native menu
+- Clicking a profile entry: `on_menu_event` in `lib.rs` calls `parse_tray_action` (pure, prefix-based) and emits a `tray-action` event (`{ kind, config_name, requires_auth }`) via `app.emit`. It never calls openvpn3 itself — the frontend owns that
+- `App.tsx` subscribes to `tray-action` once (via `@tauri-apps/api/event`'s `listen`) and re-dispatches to the existing `handleConnect`/`handleDisconnect`, so all the usual behavior (loading state, toasts, retry-until-session-appears, `AUTH_FAILED` translation) is reused as-is. The listener ignores events while `loadingAction` is set (read through a ref, so the effect never needs to resubscribe)
+- MFA profiles (`requires_auth`): before emitting `tray-action`, `lib.rs` shows/unminimizes/focuses the main window. `handleConnect` already opens `AuthDialog` for those, so no extra frontend logic was needed
+- Left-click still shows the window (`show_menu_on_left_click(false)`); right-click opens the context menu
 
 ### MFA / auth-user-pass
 - A profile needs credentials when it has a bare `auth-user-pass` (with a file argument it does not prompt)
