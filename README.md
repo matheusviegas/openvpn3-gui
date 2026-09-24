@@ -28,7 +28,7 @@
 - **Real-time status** — Virtual IP, connection uptime, and live traffic stats per session
 - **Custom titlebar** — Native-looking custom titlebar integrated with the app design
 - **Status bar** — Footer showing openvpn3 version and active session count
-- **System tray** — Minimize to tray on close; click to restore
+- **System tray** — Minimize to tray on close; right-click for a context menu to connect/disconnect any profile (left-click restores the window)
 - **Dark / Light themes**
 - **Multi-language** — English, Português (BR), Español (easily extensible)
 - **Loading feedback** — Spinners and toast notifications on all actions
@@ -133,7 +133,7 @@ openvpn3-gui/
 │           ├── config.rs     # list, import, remove configs + auth-user-pass detection
 │           ├── credentials.rs # Saved usernames (never passwords)
 │           ├── session.rs    # connect, disconnect, status, session-stats, version
-│           └── tray.rs       # Tray language sync
+│           └── tray.rs       # Tray context menu (profiles, connect/disconnect, i18n)
 └── scripts/                  # Dev/build automation
 ```
 

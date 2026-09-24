@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import { Toaster, toast } from "sonner";
 import { Loader2 } from "lucide-react";
@@ -36,7 +37,7 @@ interface StatsState {
 }
 
 function App() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [configs, setConfigs] = useState<VpnConfig[]>([]);
   const [sessions, setSessions] = useState<SessionInfo[]>([]);
   const [sessionStats, setSessionStats] = useState<Record<string, StatsState>>({});
@@ -46,6 +47,8 @@ function App() {
   const [aboutOpen, setAboutOpen] = useState(false);
   const [openvpnVersion, setOpenvpnVersion] = useState("");
   const prevStatsRef = useRef<Record<string, { bytesIn: number; bytesOut: number; timestamp: number }>>({});
+  const loadingActionRef = useRef<string | null>(null);
+  const traySignatureRef = useRef<string>("");
 
   const NAME_REGEX = /^[a-zA-Z0-9_-]+$/;
 
@@ -64,6 +67,25 @@ function App() {
     const interval = setInterval(refreshStatus, 3000);
     return () => clearInterval(interval);
   }, [refreshConfigs, refreshStatus]);
+
+  useEffect(() => {
+    loadingActionRef.current = loadingAction;
+  }, [loadingAction]);
+
+  // Mirror configs + sessions + locale into the tray menu. Guarded by a signature so
+  // a same-content re-render (e.g. the 3s status poll) doesn't rebuild the native
+  // menu — which can dismiss it if it's open — on every tick.
+  useEffect(() => {
+    const profiles = configs.map((c) => ({
+      name: c.name,
+      requires_auth: c.requires_auth,
+      connected: sessions.some((s) => s.config_name === c.name),
+    }));
+    const signature = JSON.stringify({ locale, profiles });
+    if (signature === traySignatureRef.current) return;
+    traySignatureRef.current = signature;
+    invoke("sync_tray_menu", { locale, profiles }).catch((e) => console.error(e));
+  }, [configs, sessions, locale]);
 
   // Stats polling for active sessions
   useEffect(() => {
@@ -220,6 +242,36 @@ function App() {
     }
     setLoadingAction(null);
   };
+
+  // Kept up to date every render so the tray-action listener (subscribed once)
+  // always calls the latest handlers without needing to resubscribe.
+  const handleConnectRef = useRef(handleConnect);
+  const handleDisconnectRef = useRef(handleDisconnect);
+  useEffect(() => {
+    handleConnectRef.current = handleConnect;
+    handleDisconnectRef.current = handleDisconnect;
+  });
+
+  // Reacts to clicks on profile entries in the tray menu (see src-tauri tray.rs).
+  // Connect reuses handleConnect, so MFA profiles still open the AuthDialog exactly
+  // like clicking "Connect" in the main window.
+  useEffect(() => {
+    const unlistenPromise = listen<{ kind: "connect" | "disconnect"; config_name: string }>(
+      "tray-action",
+      (event) => {
+        if (loadingActionRef.current) return;
+        const { kind, config_name } = event.payload;
+        if (kind === "connect") {
+          handleConnectRef.current(config_name);
+        } else {
+          handleDisconnectRef.current(config_name);
+        }
+      }
+    );
+    return () => {
+      unlistenPromise.then((unlisten) => unlisten());
+    };
+  }, []);
 
   const getSession = (name: string) => sessions.find(s => s.config_name === name);
 
